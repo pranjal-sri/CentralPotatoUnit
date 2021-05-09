@@ -40,11 +40,15 @@ MISC_INS = {
     'END' : '11001111'
 }
 
+ASSEMBLER_FLAGS = {
+    '--debug' : 'DEBUG',
+    '-D' : 'DEBUG',
+}
+
 class Assembler:
     def sanitise(self, f):
         sanitised = []
         for command in f:
-            # command = command.replace(' ', '')
             while command.startswith(' '):
                 command = command[1:]
             command = command.replace('\t', '')
@@ -58,10 +62,29 @@ class Assembler:
         return sanitised
 
     def __init__(self):
-        self.filename = sys.argv[1] 
-        f = open(self.filename).readlines()
-        self.file = self.sanitise(f)
-        self.mcl = ['v2.0 raw\n']
+        self.flags = {
+            'DEBUG' : False
+        }
+        self.filename = ''
+        self.savename = ''
+        for i in range(1, len(sys.argv)):
+            if sys.argv[i] in ASSEMBLER_FLAGS.keys():
+                self.flags[ASSEMBLER_FLAGS[sys.argv[i]]] = True
+            elif not self.filename:
+                self.filename = sys.argv[i]
+            elif not self.savename:
+                self.savename = sys.argv[i]
+        if self.filename:
+            try:
+                f = open(self.filename).readlines()
+            except:
+                print(self.filename + ' does not exist.')
+                sys.exit()
+            self.file = self.sanitise(f)
+            self.mcl = ['v2.0 raw\n']
+        else:
+            print("No input file given.")
+            sys.exit()
     
     def BinToHex(self, binary):
         return hex(int(binary, 2))[2:]
@@ -79,9 +102,14 @@ class Assembler:
     def toMachineCode(self):
         for command in self.file:
             mc = ""
-            print(command)
+            if self.flags['DEBUG']:
+                print(command)
+            
             command = command.split(' ')
-            print(command)
+            
+            if self.flags['DEBUG']:
+                print(command)
+            
             if len(command) == 3:
                 if command[0] in ALU_INS.keys():
                     mc += ALU_INS[command[0]]
@@ -132,13 +160,18 @@ class Assembler:
                     while len(mc) < 8:
                         mc = '0' + mc
 
-            print(mc[:4], mc[4:])
-            print(self.BinToHex(mc))
-            print()
+            if self.flags['DEBUG']:
+                print(mc[:4], mc[4:])
+                print(self.BinToHex(mc))
+                print()
+            
             self.mcl.append(self.BinToHex(mc) + '\n')
     
     def saveToFile(self):
-        file = open(self.filename[0:-4] + '.prg', 'w')
+        if not self.savename:
+            file = open(self.filename[0:-4] + '.prg', 'w')
+        else:
+            file = open(self.savename, 'w')
         for mc in self.mcl:
             file.write(mc)
         file.close()
