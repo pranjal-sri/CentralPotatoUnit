@@ -35,6 +35,10 @@ JUMP_INS = {
 JMPFLGPREFIX = 'J'
 JMPIF = '0101'
 
+LABELFLGPREFIX = '('
+LABELFLGSUFFIX = ')'
+LABEL_FLAG = '@'
+
 MISC_INS = {
     'CLF' : '01100000',
     'END' : '11001111'
@@ -49,11 +53,7 @@ class Assembler:
     def sanitise(self, f):
         sanitised = []
         for command in f:
-            while command.startswith(' '):
-                command = command[1:]
-            command = command.replace('\t', '')
-            command = command.replace('\n', '')
-            command = command.replace('\r', '')
+            command = command.strip()
             if command[:2] == '//' or len(command) < 1:
                 continue
             if command.find('//') != -1:
@@ -65,6 +65,8 @@ class Assembler:
         self.flags = {
             'DEBUG' : False
         }
+        self.symbolTable = {}
+        self.symbolLocs = {}
         self.filename = ''
         self.savename = ''
         for i in range(1, len(sys.argv)):
@@ -148,6 +150,19 @@ class Assembler:
                         elif f == 'C':
                             gezc[3] = '1'
                     mc += JMPIF + ''.join(gezc)
+                
+                elif command[0].startswith(LABELFLGPREFIX) and command[0].endswith(LABELFLGSUFFIX):
+                    if self.flags['DEBUG']:
+                        print()
+                    command = command[0][1:-1].strip()
+                    self.symbolTable[command] = len(self.mcl) - 1
+                    continue
+                
+                elif command[0].startswith(LABEL_FLAG):
+                    if command[0][1:] not in self.symbolLocs.keys():
+                        self.symbolLocs[command[0][1:]] = []
+                    self.symbolLocs[command[0][1:]].append(len(self.mcl))
+                    mc += LABEL_FLAG
 
                 elif command[0].isdigit():
                     mc += self.DecToBin(command[0])
@@ -161,11 +176,28 @@ class Assembler:
                         mc = '0' + mc
 
             if self.flags['DEBUG']:
-                print(mc[:4], mc[4:])
-                print(self.BinToHex(mc))
+                print(mc[:len(mc)//2], mc[len(mc)//2:])
+                if mc != LABEL_FLAG:
+                    print(self.BinToHex(mc))
                 print()
             
-            self.mcl.append(self.BinToHex(mc) + '\n')
+            if mc == LABEL_FLAG:
+                self.mcl.append(mc + '\n')
+            else:
+                self.mcl.append(self.BinToHex(mc) + '\n')
+        
+        if self.flags['DEBUG']:
+            print('Symbols Used : ')
+        for sym in self.symbolLocs.keys():
+            if self.flags['DEBUG']:
+                print(sym + ' = ' + str(self.symbolTable[sym]))
+                print('Indices : ')
+            for ind in self.symbolLocs[sym]:
+                if self.flags['DEBUG']:
+                    print(ind)
+                self.mcl[ind] = self.BinToHex(self.DecToBin(str(self.symbolTable[sym]))) + '\n'
+            if self.flags['DEBUG']:
+                print()
     
     def saveToFile(self):
         if not self.savename:
