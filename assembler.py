@@ -41,7 +41,7 @@ LABEL_FLAG = '@'
 
 MISC_INS = {
     'CLF' : '01100000',
-    'END' : '11001111'
+    'END' : '01111111'
 }
 
 ASSEMBLER_FLAGS = {
